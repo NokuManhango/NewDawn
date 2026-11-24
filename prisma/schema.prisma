@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model School {
+  id            String         @id @default(cuid())
+  name          String
+  province      String
+  district      String
+  address       String
+  phone         String?
+  email         String?
+  logoUrl       String?
+  directorId    String?        @unique
+  director      User?          @relation("SchoolDirector", fields: [directorId], references: [id])
+  users         User[]         @relation("SchoolUsers")
+  students      Student[]
+  classes       Class[]
+  announcements Announcement[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model User {
+  id             String         @id @default(cuid())
+  name           String
+  email          String         @unique
+  phone          String?
+  password       String
+  role           Role
+  schoolId       String?
+  school         School?        @relation("SchoolUsers", fields: [schoolId], references: [id])
+  directedSchool School?        @relation("SchoolDirector")
+  guardianOf     Student[]      @relation("GuardianStudents")
+  teacherClasses TeacherClass[]
+  attendance     Attendance[]   @relation("TeacherAttendance")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+enum Role {
+  SUPER_ADMIN
+  DIRECTOR
+  PROFESSOR
+  ALUNO
+  ENCARREGADO
+}
+
+model Student {
+  id             String        @id @default(cuid())
+  studentNumber  String        @unique
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime
+  gender         Gender
+  phone          String?
+  guardianPhone  String?
+  address        String?
+  photoUrl       String?
+  status         StudentStatus @default(ACTIVE)
+  enrollmentDate DateTime      @default(now())
+  schoolId       String
+  school         School        @relation(fields: [schoolId], references: [id])
+  classId        String?
+  class          Class?        @relation(fields: [classId], references: [id])
+  guardianId     String?
+  guardian       User?         @relation("GuardianStudents", fields: [guardianId], references: [id])
+  results        Result[]
+  attendance     Attendance[]
+  payments       Payment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum Gender {
+  MASCULINO
+  FEMININO
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  TRANSFERRED
+  GRADUATED
+}
+
+model Class {
+  id        String          @id @default(cuid())
+  name      String
+  grade     Int
+  section   String
+  year      Int
+  schoolId  String
+  school    School          @relation(fields: [schoolId], references: [id])
+  students  Student[]
+  teachers  TeacherClass[]
+  timetable TimetableEntry[]
+  results   Result[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model Subject {
+  id        String          @id @default(cuid())
+  name      String
+  code      String
+  grade     Int?
+  results   Result[]
+  timetable TimetableEntry[]
+  books     Book[]
+  createdAt DateTime        @default(now())
+}
+
+model TeacherClass {
+  id        String  @id @default(cuid())
+  teacherId String
+  teacher   User    @relation(fields: [teacherId], references: [id])
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id])
+  subjectId String
+}
+
+model Result {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  trimester Int
+  year      Int
+  nota      Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  studentId String
+  student   Student          @relation(fields: [studentId], references: [id])
+  teacherId String?
+  teacher   User?            @relation("TeacherAttendance", fields: [teacherId], references: [id])
+  date      DateTime
+  status    AttendanceStatus
+  notes     String?
+  createdAt DateTime         @default(now())
+}
+
+enum AttendanceStatus {
+  PRESENTE
+  AUSENTE
+  JUSTIFICADO
+}
+
+model TimetableEntry {
+  id        String  @id @default(cuid())
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id])
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  room      String?
+}
+
+model Book {
+  id          String   @id @default(cuid())
+  title       String
+  author      String
+  subjectId   String?
+  subject     Subject? @relation(fields: [subjectId], references: [id])
+  grade       Int?
+  fileUrl     String?
+  coverUrl    String?
+  language    String   @default("pt")
+  description String?
+  downloads   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Announcement {
+  id        String           @id @default(cuid())
+  title     String
+  content   String
+  type      AnnouncementType
+  schoolId  String?
+  school    School?          @relation(fields: [schoolId], references: [id])
+  sendSMS   Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+enum AnnouncementType {
+  GERAL
+  URGENTE
+  EVENTO
+  ACADEMICO
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  studentId String
+  student   Student       @relation(fields: [studentId], references: [id])
+  amount    Float
+  type      PaymentType
+  method    PaymentMethod
+  reference String?
+  status    PaymentStatus @default(PENDING)
+  dueDate   DateTime?
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime      @default(now())
+}
+
+enum PaymentType {
+  MATRICULA
+  MENSALIDADE
+  EXAME
+  MULTA
+}
+
+enum PaymentMethod {
+  MPESA
+  MCEL_MONEY
+  CASH
+  BANCO
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
